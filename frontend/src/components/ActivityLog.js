@@ -1,12 +1,9 @@
 import React, { useEffect, useState, useContext,useCallback } from "react";
 import { AuthContext } from "../context/AuthContext";
-import io from "socket.io-client";
+import { io } from "socket.io-client";
 
 
-const socket = io(process.env.REACT_APP_BASE_URL, {
-  transports: ["websocket"], 
-  withCredentials: true      
-});
+const socket = io(process.env.REACT_APP_BASE_URL);
 
 const ActivityLog = () => {
   const { token } = useContext(AuthContext);
