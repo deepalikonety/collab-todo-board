@@ -5,7 +5,7 @@ An intuitive task management application that lets teams plan, assign, and track
 ### 🚀 Live Demo
 
 🔗 App: [collab-todo-board.vercel.app](https://collab-todo-board.vercel.app)  
-🎥 Demo Video: [Watch on Google Drive](https://drive.google.com/file/d/14YjclwUvSkS0QqwXS77V609wTrrIRl-9/view?usp=sharing)
+🎥 Demo Video: (https://drive.google.com/file/d/14YjclwUvSkS0QqwXS77V609wTrrIRl-9/view?usp=sharing)
 
 ---
 
