@@ -49,30 +49,34 @@ exports.updateTask = async (req, res) => {
     const task = await Task.findById(id);
     if (!task) return res.status(404).json({ message: "Task not found" });
 
-    if (updates.version && updates.version !== task.version) {
+    // Conflict detected if version mismatches (and user didn't force)
+    if (!updates.force && updates.version && updates.version !== task.version) {
       return res.status(409).json({
-        message: "Conflict detected",
+        message: "⚠️ Conflict detected",
         currentTask: task,
+        yourChanges: updates,
+        serverVersion: task.version,
+        clientVersion: updates.version,
       });
     }
 
-    const updatedTask = await Task.findByIdAndUpdate(
-      id,
-      {
-        ...updates,
-        lastUpdatedBy: req.user._id,
-        version: task.version + 1,
-      },
-      { new: true }
-    );
+    // Apply updates
+    task.title = updates.title || task.title;
+    task.description = updates.description || task.description;
+    task.status = updates.status || task.status;
+    task.priority = updates.priority || task.priority;
+    task.assignedUser = updates.assignedUser || task.assignedUser;
+    task.lastUpdatedBy = req.user._id;
+    task.version += 1;
+
+    const updatedTask = await task.save();
 
     await logAction(req.user._id, "Updated", updatedTask._id, `Updated task "${updatedTask.title}"`);
-
     global.io.emit("taskUpdated", updatedTask);
-
 
     res.json(updatedTask);
   } catch (err) {
+    console.error("Conflict error:", err);
     res.status(500).json({ message: "Update failed", error: err.message });
   }
 };
