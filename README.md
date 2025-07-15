@@ -4,7 +4,8 @@ An intuitive task management application that lets teams plan, assign, and track
 
 ### 🚀 Live Demo
 
-🔗 [collab-todo-board.vercel.app](https://collab-todo-board.vercel.app)
+🔗 App: [collab-todo-board.vercel.app](https://collab-todo-board.vercel.app)  
+🎥 Demo Video: [Watch on Loom](https://loom.com/your-demo-link)
 
 ---
 
@@ -82,6 +83,26 @@ Then run:
 ```bash
 npm start
 ```
+---
+
+## 🧠 Unique Logic Explained
+
+### Smart Assign
+Automatically distributes tasks to users with the fewest active (non-done) tasks. This ensures load-balancing across the team without manual assignment.
+
+- Uses MongoDB aggregation to count each user’s active tasks.
+- Finds the user with the minimum count.
+- Updates the task with the selected user and logs the action.
+
+### Conflict Handling
+Handles real-time editing conflicts if two users try to update the same task simultaneously.
+
+- Each task has a `version` field.
+- When editing, the version is sent along with the update.
+- If the server detects a mismatch, a `409 Conflict` response is sent.
+- A modal appears letting the user choose to:
+  - ✅ Merge (combine their change with the latest version), or
+  - ✅ Overwrite (forcefully update with their version)
 
 ---
 
