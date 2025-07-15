@@ -4,7 +4,7 @@ import Column from "../components/Column";
 import { AuthContext } from "../context/AuthContext";
 import ActivityLog from "../components/ActivityLog";
 import { useNavigate } from "react-router-dom";
-
+import ConflictModal from "../components/ConflictModal";
 const statusMap = {
   Todo: "Todo",
   In_Progress: "In Progress",
@@ -15,6 +15,8 @@ const BoardPage = () => {
   const { token, user } = useContext(AuthContext);
   const [tasks, setTasks] = useState([]);
   const [showLog, setShowLog] = useState(true);
+  const [conflict, setConflict] = useState(null);
+
   const navigate = useNavigate();
 const [newTask, setNewTask] = useState({
   title: "",
@@ -59,35 +61,55 @@ useEffect(() => {
   }, [fetchTasks]);
 
   const handleDragEnd = async (result) => {
-    const { destination, source, draggableId } = result;
-    if (!destination) return;
-    if (
-      destination.droppableId === source.droppableId &&
-      destination.index === source.index
-    )
-      return;
+  const { destination, source, draggableId } = result;
+  if (!destination) return;
 
-    const newStatus = statusMap[destination.droppableId];
-    const taskId = draggableId;
+  if (
+    destination.droppableId === source.droppableId &&
+    destination.index === source.index
+  )
+    return;
 
-    try {
-      const res = await fetch(`${process.env.REACT_APP_BASE_URL}/api/tasks/${taskId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ status: newStatus }),
+  const newStatus = statusMap[destination.droppableId];
+  const taskId = draggableId;
+
+  // 🧠 Get the task we're moving, to access its version
+  const task = tasks.find((t) => t._id === taskId);
+  if (!task) return;
+
+  try {
+    const res = await fetch(`${process.env.REACT_APP_BASE_URL}/api/tasks/${taskId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ status: newStatus, version: task.version }),
+    });
+
+    if (res.status === 409) {
+      const conflictData = await res.json();
+      setConflict({
+       currentTask: conflictData.currentTask,
+       userVersion: {
+        ...task,
+        status: newStatus,
+       },
       });
-
-      const updated = await res.json();
-      setTasks((prev) =>
-        prev.map((t) => (t._id === updated._id ? updated : t))
-      );
-    } catch (err) {
-      console.error("Drag update failed:", err);
+      alert("⚠️ Conflict detected: Task was updated elsewhere. Please refresh or overwrite manually.");
+      console.warn("Conflict details:", conflict);
+      return;
     }
-  };
+
+    const updated = await res.json();
+    setTasks((prev) =>
+      prev.map((t) => (t._id === updated._id ? updated : t))
+    );
+  } catch (err) {
+    console.error("Drag update failed:", err);
+  }
+};
+
 
   const getTasksByStatus = (status) =>
     tasks.filter(
@@ -350,6 +372,53 @@ useEffect(() => {
   </DragDropContext>
 
   {showLog && <ActivityLog />}
+  {conflict && (
+  <ConflictModal
+    currentTask={conflict.currentTask}
+    userVersion={conflict.userVersion}
+    onMerge={async () => {
+      try {
+        const merged = {
+          ...conflict.currentTask,
+          ...conflict.userVersion,
+          version: conflict.currentTask.version + 1,
+        };
+        const res = await fetch(`${process.env.REACT_APP_BASE_URL}/api/tasks/${merged._id}/overwrite`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(merged),
+        });
+        await res.json();
+        setConflict(null);
+        fetchTasks();
+      } catch (err) {
+        console.error("Merge failed", err);
+      }
+    }}
+    onOverwrite={async () => {
+      try {
+        const res = await fetch(`${process.env.REACT_APP_BASE_URL}/api/tasks/${conflict.userVersion._id}/overwrite`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(conflict.userVersion),
+        });
+        await res.json();
+        setConflict(null);
+        fetchTasks();
+      } catch (err) {
+        console.error("Overwrite failed", err);
+      }
+    }}
+    onClose={() => setConflict(null)}
+  />
+)}
+
 </div> 
     </div>
   );
